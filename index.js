@@ -218,6 +218,8 @@ function (
                 }, 250);
             });
         });
+
+        // Code to constrain heading to due north. Commented because of performance hit.
         //_view.watch('camera', function (camera) {
         //    _view.set({
         //        camera: camera.clone().set({
