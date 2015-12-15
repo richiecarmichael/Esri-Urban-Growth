@@ -259,12 +259,30 @@ html, body {
     left: 10px;
     right: 5px;
     bottom: 5px;
+}
+
+#wiki-text {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
     font-size: 12px;
     color: rgba(0, 200, 200, 0.5);
     overflow:  hidden;
 }
 
+#wiki-fade {
+    position: absolute;
+    height: 100px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 1));
+}
+
 #button-about {
+    display:none;
     position: absolute;
     top: 10px;
     right: 5px;
@@ -318,7 +336,7 @@ html, body {
     top: 0px;
     right: 0px;
     bottom: 0px;
-    background-color: rgba(0, 0, 0, 0.30);
+    background-color: rgba(0, 0, 0, 0.4);
 }
 
 .dialog > div {
@@ -339,7 +357,7 @@ html, body {
     top: 0px;
     right: 0px;
     height: 35px;
-    background-color: rgba(0, 200, 200, 0.5);
+    background-color: rgba(0, 200, 200, 0.7);
     color: #000;
     font-size: 24px;
     text-align: center;
@@ -350,6 +368,20 @@ html, body {
     font-size: 16px;
     margin: 60px 15px 15px 15px;
     color: rgba(0, 200, 200, 0.5);
+}
+
+.dialog-description a {
+    color: rgba(0, 200, 200, 0.8);
+}
+
+.dialog-description a:link,
+.dialog-description a:visited {   
+    text-decoration: none;
+}
+
+.dialog-description a:hover,
+.dialog-description a:active {
+    text-decoration:  underline;
 }
 
 .dialog-description ul {
@@ -376,4 +408,3 @@ html, body {
     pointer-events: all;
     font-size: 18px;
 }
-

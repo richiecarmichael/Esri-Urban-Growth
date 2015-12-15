@@ -187,6 +187,7 @@ function (
                 $('#loading').hide();
                 $('#left-panel').show();
                 $('#right-panel').show();
+                $('#button-about').show();
 
                 // Load graphics and panel
                 loadGraphics();
@@ -198,12 +199,12 @@ function (
                 updateYearDisplay();
 
                 // Re-generate chart when the window resizes
-                var width = $('#chart').width();
-                var height = $('#chart').height();
+                var width = $(window).width();
+                var height = $(window).height();
                 $(window).debounce('resize', function () {
                     // Exit if width is unchanged
-                    var w = $('#chart').width();
-                    var h = $('#chart').height();
+                    var w = $(window).width();
+                    var h = $(window).height();
                     if (width !== w) {
                         // Re-load chart
                         loadChart(cities);
@@ -273,8 +274,8 @@ function (
             $('#about').fadeIn();
         });
 
-        $('#about .dialog-button-close').click(function () {
-            $('#about').fadeOut();
+        $('.dialog .close').click(function () {
+            $(this).parents('.dialog').fadeOut();
         });
 
         $('a').attr('target', '_blank');
@@ -860,7 +861,7 @@ function (
         function showWiki(city) {
             $('#city').html(city.name);
             $('#country').html(city.country);
-            $('#wiki').empty();
+            $('#wiki-text').empty();
 
             if (!city.wiki) { return; }
 
@@ -877,16 +878,14 @@ function (
                 var pages = data.query.pages;
                 var page = pages[Object.keys(pages)[0]];
                 var extract = page.extract;
-                $('#wiki').html(extract);
-                //var nodes = $.parseHTML(extract);
-                //$('#wiki').html(nodes[0]);
+                $('#wiki-text').html(extract);
             });
         }
 
         function clearWiki() {
             $('#city').empty();
             $('#country').empty();
-            $('#wiki').empty();
+            $('#wiki-text').empty();
         }
 
         function updateYearDisplay() {
