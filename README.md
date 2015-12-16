@@ -6,7 +6,7 @@ Inspiration and data for this app was derived from [Tertius Chandler](https://en
 
 Special thanks to [Witold Frączek](https://www.linkedin.com/in/witold-fraczek-30671b4) and [Carol Sousa](https://www.linkedin.com/in/carol-sousa-97b87a1b) for geolocating, verifying and updating the city database.
 
-#### This application makes use of the following libraries
+##### This application makes use of the following libraries:
 
 * [ArcGIS API for JavaScript](https://developers.arcgis.com/javascript/) ([beta](https://developers.arcgis.com/javascript/beta/)) by [Esri](http://www.esri.com/)
   - Esri’s JavaScript library for mapping and analysis.
