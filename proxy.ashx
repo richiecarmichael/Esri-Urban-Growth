@@ -156,6 +156,9 @@ public class proxy : IHttpHandler {
         //name by which token parameter is passed (if url actually came from the list)
         string tokenParamName = serverUrl != null ? serverUrl.TokenParamName : null;
 
+        //
+        context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+        
 
         if (String.IsNullOrEmpty(tokenParamName))
             tokenParamName = "token";

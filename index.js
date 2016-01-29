@@ -13,7 +13,7 @@ require([
     'esri/symbols/ObjectSymbol3DLayer',
     'esri/layers/ArcGISTiledLayer',
     'esri/layers/GraphicsLayer',
-    'esri/core/Scheduler',
+    "esri/renderers/SimpleRenderer",
     'esri/views/SceneView',
     'dojo/domReady!'
 ],
@@ -27,7 +27,7 @@ function (
     ObjectSymbol3DLayer,
     ArcGISTiledLayer,
     GraphicsLayer,
-    Scheduler,
+    SimpleRenderer,
     SceneView
     ) {
     $(document).ready(function () {
@@ -91,7 +91,7 @@ function (
         };
 
         // Constants
-        var PROXY = 'proxy.ashx';
+        var PROXY = 'http://maps.esri.com/rc/urban/proxy.ashx';
         var WIKI = 'https://en.wikipedia.org/w/api.php';
         var BASEMAP = 'http://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer';
         var DATE_MIN = 0;              // Chart's start date
@@ -102,17 +102,17 @@ function (
         var FILTER = 100;              // Number of spikes
         var SPIKE_HEIGHT_MIN = 10000;
         var SPIKE_HEIGHT_MAX = 3000000;
-        var SPIKE_SHAPE = 'cube';
-        var SPIKE_WIDTH = 200000;
-        var SPIKE_COLOR = [0, 200, 0, 0.3];
-        var SPIKE_HIGHLIGHT_COLOR = [0, 200, 0, 1];
+        var SPIKE_SHAPE = 'cylinder';
+        var SPIKE_WIDTH = 500000;
+        var SPIKE_COLOR_LOW = [0, 0, 255, 255];
+        var SPIKE_COLOR_HIGH = [255, 0, 0, 255];
+        var SPIKE_COLOR_HIGHLIGHT = [0, 255, 255, 255];
         var INTERPOLATE_THRESHOLD = 50;
 
         // Variables
         var _currentTime = DATE_STA;
         var _isdragging = false;
-        var _spikes = new GraphicsLayer();
-        var _selected = null;
+        var _selected = null; // id
         var _cities = null;
         var _x = null;
         var _y = null;
@@ -124,16 +124,48 @@ function (
                 layers: [
                     new ArcGISTiledLayer({
                         url: BASEMAP
+                    }),
+                    new GraphicsLayer({
+                        id:'spike',
+                        renderer: new SimpleRenderer({
+                            symbol: new PointSymbol3D({
+                                symbolLayers: [new ObjectSymbol3DLayer({
+                                    width: SPIKE_WIDTH,
+                                    height: 100000,
+                                    resource: {
+                                        primitive: SPIKE_SHAPE
+                                    },
+                                    material: {
+                                        color: [255, 0, 0]
+                                    }
+                                })]
+                            }),
+                            visualVariables: [{
+                                type: 'colorInfo',
+                                field: 'color',
+                                stops: [
+                                    { value: -1, color: SPIKE_COLOR_HIGHLIGHT },
+                                    { value: 0, color: SPIKE_COLOR_HIGH },
+                                    { value: FILTER - 1, color: SPIKE_COLOR_LOW }
+                                ]
+                            }, {
+                                type: 'sizeInfo',
+                                field: 'size',
+                                minDataValue: 0,
+                                maxDataValue: FILTER-1,
+                                minSize: SPIKE_HEIGHT_MAX,
+                                maxSize: SPIKE_HEIGHT_MIN,
+                                axis: 'height'
+                            }, {
+                                type: 'sizeInfo',
+                                minSize: SPIKE_WIDTH,
+                                axis: 'width'
+                            }]
+                        })
                     })
                 ]
             }),
             center: [40, 22],
-            padding: {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0
-            },
             constraints: {
                 altitude: {
                     max: 50000000
@@ -172,9 +204,6 @@ function (
                 }
             };
 
-            // Add city graphics layer
-            _view.map.add(_spikes);
-
             // Load population data
             loadPopulation().done(function (cities) {
                 //
@@ -191,6 +220,7 @@ function (
 
                 // Load graphics and panel
                 loadGraphics();
+                loadPanel();
 
                 // Load histogram
                 loadHistogram();
@@ -218,14 +248,6 @@ function (
                 }, 250);
             });
         });
-        // Code to constrain heading to due north. Commented because of performance hit.
-        //_view.watch('camera', function (camera) {
-        //    _view.set({
-        //        camera: camera.clone().set({
-        //            heading: 0,
-        //        })
-        //    });
-        //});
 
         $('#map').mousemove(function (e) {
             // Exit if view not initialized
@@ -234,28 +256,34 @@ function (
             _view.hitTest(e.offsetX, e.offsetY).then(function (p) {
                 // Nothing found. Clear selection. Exit.
                 if (!p || !p.graphic) {
-                    clearSelection();
+                    //clearSelection();
                     clearChartSeries();
                     clearPanel();
                     clearWiki();
                     $('#histogram').show();
+                    if (_selected) {
+                        _selected = null;
+                        loadGraphics();
+                        loadPanel();
+                    }
                     return;
                 }
 
                 // Feature already selected
-                if (isSelected(p.graphic)) {
+                if (_selected && _selected === p.graphic.attributes.city.id) {
                     return;
                 }
 
                 // Clear selection, chart and panel
-                clearSelection();
                 clearChartSeries();
                 clearPanel();
                 clearWiki();
                 $('#histogram').show();
 
                 // Select graphic
-                selectGraphic(p.graphic.attributes.city);
+                _selected = p.graphic.attributes.city.id;
+                loadGraphics();
+                loadPanel();
 
                 // Load chart series
                 loadChartSeries(p.graphic.attributes.city);
@@ -266,7 +294,7 @@ function (
                 // Show wikipedia text
                 showWiki(p.graphic.attributes.city);
 
-                //
+                // Hide histogram chart
                 $('#histogram').hide();
             });
         });
@@ -281,11 +309,6 @@ function (
 
         $('a').attr('target', '_blank');
 
-        function isSelected(graphic) {
-            if (!_selected) { return false; }
-            return _selected === graphic;
-        }
-
         function selectPanel(city) {
             $('#container > div.item')
                 .filter(function () {
@@ -297,55 +320,6 @@ function (
 
         function clearPanel() {
             $('#container > div.item').removeClass('hover');
-        }
-
-        function clearSelection() {
-            if (_selected) {
-                var normal = new Graphic({
-                    geometry: _selected.geometry,
-                    attributes: _selected.attributes,
-                    symbol: new PointSymbol3D({
-                        symbolLayers: [new ObjectSymbol3DLayer({
-                            width: SPIKE_WIDTH,
-                            height: _selected.symbol.symbolLayers[0].height,
-                            resource: {
-                                primitive: SPIKE_SHAPE
-                            },
-                            material: {
-                                color: SPIKE_COLOR
-                            }
-                        })]
-                    })
-                });
-                _spikes.remove(_selected);
-                _spikes.add(normal);
-                _selected = null;
-            }
-        }
-
-        function selectGraphic(city) {
-            var graphic = _spikes.graphics.find(function (e) {
-                return e.attributes.city.id === city.id;
-            });
-            if (graphic === null) { return; }
-            _selected = new Graphic({
-                geometry: graphic.geometry,
-                attributes: graphic.attributes,
-                symbol: new PointSymbol3D({
-                    symbolLayers: [new ObjectSymbol3DLayer({
-                        width: SPIKE_WIDTH,
-                        height: graphic.symbol.symbolLayers[0].height,
-                        resource: {
-                            primitive: SPIKE_SHAPE
-                        },
-                        material: {
-                            color: SPIKE_HIGHLIGHT_COLOR
-                        }
-                    })]
-                })
-            });
-            _spikes.remove(graphic);
-            _spikes.add(_selected);
         }
 
         function loadPopulation() {
@@ -519,6 +493,7 @@ function (
 
                     // Select cities
                     loadGraphics();
+                    loadPanel();
 
                     loadHistogram();
 
@@ -573,6 +548,7 @@ function (
 
                             // Update graphics and right hand panel
                             loadGraphics();
+                            loadPanel();
 
                             // Update histogram
                             loadHistogram();
@@ -695,8 +671,8 @@ function (
             }).slice(0, FILTER - 1);
 
             // Add graphic
-            _spikes.clear();
-            _spikes.add(
+            _view.map.getLayer('spike').clear();
+            _view.map.getLayer('spike').add(
                 selection.map(function (e, i) {
                     return new Graphic({
                         geometry: new Point({
@@ -705,52 +681,46 @@ function (
                         }),
                         attributes: {
                             city: e.city,
-                            population: e.population
-                        },
-                        symbol: new PointSymbol3D({
-                            symbolLayers: [new ObjectSymbol3DLayer({
-                                width: SPIKE_WIDTH,
-                                height: SPIKE_HEIGHT_MIN + (SPIKE_HEIGHT_MAX - SPIKE_HEIGHT_MIN) * (FILTER - i) / FILTER,
-                                resource: {
-                                    primitive: SPIKE_SHAPE
-                                },
-                                material: {
-                                    color: SPIKE_COLOR
-                                }
-                            })]
-                        })
+                            population: e.population,
+                            color: (_selected && _selected === e.city.id) ? -1 : i,
+                            size: i
+                        }
                     });
                 })
-            );
+            ); 
+        }
 
+        function loadPanel() {
             // Add panel entries
             $('#container').empty();
-            $.each(selection, function (i) {
+            $.each(_view.map.getLayer('spike').graphics.getAll(), function (i) {
                 $('#container').append(
                     $(document.createElement('div')).addClass('item').append(
                         $(document.createElement('div')).addClass('item-order').html(i + 1),
-                        $(document.createElement('div')).addClass('item-city').html(this.city.name),
-                        $(document.createElement('div')).addClass('item-country').html(this.city.country),
-                        $(document.createElement('div')).addClass('item-pop').html(d3.format(',.2r')(this.population * 1000))
+                        $(document.createElement('div')).addClass('item-city').html(this.attributes.city.name),
+                        $(document.createElement('div')).addClass('item-country').html(this.attributes.city.country),
+                        $(document.createElement('div')).addClass('item-pop').html(d3.format(',.2r')(this.attributes.population * 1000))
                     )
                     .mouseenter(function () {
                         var city = $(this).data().city;
-                        clearSelection();
-                        selectGraphic(city);
+                        _selected = city.id;
+                        loadGraphics();
                         loadChartSeries(city);
                         showWiki(city);
                         $(this).addClass('hover');
                         $('#histogram').hide();
                     })
                     .mouseleave(function () {
-                        clearSelection();
+                        //clearSelection();
+                        _selected = null;
+                        loadGraphics();
                         clearChartSeries();
                         clearWiki();
                         $(this).removeClass('hover');
                         $('#histogram').show();
                     })
                     .data({
-                        city: this.city
+                        city: this.attributes.city
                     })
                     .click(function () {
                         var city = $(this).data().city;
@@ -786,7 +756,7 @@ function (
                 { label:  '20M', population: 20000000, frequency: 0 },
                 { label: '+20M', population: 30000000, frequency: 0 }
             ];
-            $.each(_spikes.graphics.getAll(), function () {
+            $.each(_view.map.getLayer('spike').graphics.getAll(), function () {
                 var that = this;
                 $.each(data, function () {
                     if (that.attributes.population <= this.population / 1000) {
